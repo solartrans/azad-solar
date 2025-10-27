@@ -25,6 +25,7 @@ import * as urls from './url';
 let scheduler: request_scheduler.IRequestScheduler | null = null;
 let years: number[] = [];
 let stats_timeout: NodeJS.Timeout | null = null;
+let quick_export_button: HTMLButtonElement | null = null;
 
 const SITE: string = urls.getSite();
 
@@ -278,6 +279,94 @@ function handleMessageFromBackgroundToRootContentPage(msg: any): void {
   }
 }
 
+function createQuickExportButton(): void {
+  // Find the "Your Orders" heading
+  const headings = document.querySelectorAll('h1');
+  let ordersHeading: HTMLElement | null = null;
+
+  for (const heading of Array.from(headings)) {
+    if (heading.textContent?.includes('Your Orders')) {
+      ordersHeading = heading as HTMLElement;
+      break;
+    }
+  }
+
+  if (!ordersHeading) {
+    console.log('Could not find "Your Orders" heading');
+    return;
+  }
+
+  // Create the button
+  quick_export_button = document.createElement('button');
+  quick_export_button.textContent = 'shipment export 1 month csv';
+  quick_export_button.disabled = true;
+  quick_export_button.style.cssText = `
+    font-size: 14px;
+    color: black;
+    margin-top: 10px;
+    padding: 8px 16px;
+    cursor: not-allowed;
+    opacity: 0.6;
+  `;
+
+  quick_export_button.onclick = handleQuickExportClick;
+
+  // Insert button after the heading
+  ordersHeading.insertAdjacentElement('afterend', quick_export_button);
+  console.log('Quick export button created');
+}
+
+function enableQuickExportButton(): void {
+  if (quick_export_button) {
+    quick_export_button.disabled = false;
+    quick_export_button.style.cursor = 'pointer';
+    quick_export_button.style.opacity = '1';
+    console.log('Quick export button enabled');
+  }
+}
+
+async function handleQuickExportClick(): Promise<void> {
+  if (!quick_export_button) return;
+
+  // Disable button during processing
+  quick_export_button.disabled = true;
+  quick_export_button.textContent = 'Processing...';
+
+  try {
+    // Set table type to shipments
+    await settings.storeString('azad_table_type', 'shipments');
+
+    // Enable shipment info
+    await settings.storeBoolean('show_shipment_info', true);
+
+    // Calculate date range for last 1 month
+    const end_date = new Date();
+    const start_date = new Date();
+    start_date.setMonth(start_date.getMonth() - 1);
+
+    console.log(`Quick export: scraping shipments from ${start_date} to ${end_date}`);
+
+    // Trigger the scraping and wait for the table
+    const table = await fetchAndShowOrdersByRange(start_date, end_date, false);
+
+    if (table) {
+      // Download CSV
+      console.log('Quick export: downloading CSV');
+      await csv.download(table, false);
+
+      // Update button to show completion
+      quick_export_button.textContent = 'CSV Process Complete';
+      console.log('Quick export: complete');
+    } else {
+      throw new Error('Table generation failed');
+    }
+  } catch (error) {
+    console.error('Quick export error:', error);
+    quick_export_button.textContent = 'Error - Try Again';
+    quick_export_button.disabled = false;
+  }
+}
+
 function initialiseContentScript() {
   console.log('Amazon Order History Reporter content script initialising');
   console.log(git_hash.text());
@@ -288,7 +377,13 @@ function initialiseContentScript() {
   const inIframe = pageType.isIframe();
 
   if (!inIframe) {
-    periods.init(ports.getBackgroundPort);
+    // Create the quick export button
+    createQuickExportButton();
+
+    // Initialize periods and enable button when ready
+    periods.init(ports.getBackgroundPort).then(() => {
+      enableQuickExportButton();
+    });
   }
 }
 
