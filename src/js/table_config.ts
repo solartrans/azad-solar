@@ -63,10 +63,9 @@ async function category_enabled(): Promise<boolean> {
 }
 
 async function shipment_info_enabled(): Promise<boolean> {
+  // All features are enabled in this open source fork
   const show_shipment_info = await settings.getBoolean('show_shipment_info');
-  const preview_features_authorised = await settings.getBoolean(
-    'preview_features_enabled');
-  return show_shipment_info && preview_features_authorised;
+  return show_shipment_info;
 }
 
 const ORDER_COLS: colspec.ColSpec[] = [

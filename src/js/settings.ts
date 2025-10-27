@@ -62,7 +62,8 @@ async function updateCheckboxElements(
   values: Record<string, boolean>
 ): Promise<void> {
   console.info('settings.updateCheckboxElements(...)');
-  const preview_authorised = await getBoolean('preview_features_enabled');
+  // All features are enabled in this open source fork
+  const preview_authorised = true;
   console.info('settings.updateCheckboxElements(...) preview_authorised', preview_authorised);
   for ( const key of Object.keys(elements) ) {
     const value: boolean = (values && key in values) ?
@@ -76,20 +77,19 @@ async function updateCheckboxElements(
       } else {
         elem.removeAttribute('checked');
       }
-      if (preview_authorised) {
-        const parent = elem.parentElement;
-        let parent_classes = parent!.getAttribute('class');
-        console.info('settings.updateCheckboxElements(...) classes for', key, ':', parent_classes);
-        if (parent_classes) {
-          parent_classes = parent_classes.replace('azad_disabled', '').trim();
-          console.info('settings.updateCheckboxElements(...) new classes for', key, ':', parent_classes);
-          if (parent_classes.length) {
-            parent!.setAttribute('class', parent_classes);
-            console.info('settings.updateCheckboxElements(...) setting class');
-          } else {
-            parent!.removeAttribute('class');
-            console.info('settings.updateCheckboxElements(...) removing class');
-          }
+      // Always enable all features - remove 'azad_disabled' class
+      const parent = elem.parentElement;
+      let parent_classes = parent!.getAttribute('class');
+      console.info('settings.updateCheckboxElements(...) classes for', key, ':', parent_classes);
+      if (parent_classes) {
+        parent_classes = parent_classes.replace('azad_disabled', '').trim();
+        console.info('settings.updateCheckboxElements(...) new classes for', key, ':', parent_classes);
+        if (parent_classes.length) {
+          parent!.setAttribute('class', parent_classes);
+          console.info('settings.updateCheckboxElements(...) setting class');
+        } else {
+          parent!.removeAttribute('class');
+          console.info('settings.updateCheckboxElements(...) removing class');
         }
       }
     }
@@ -107,17 +107,7 @@ async function setCheckboxElemClickHandlers(
       elem.onclick = async function() {
         let value: boolean = await getBoolean(key);
         value = value ? false : true;
-        if (elem.parentElement
-                ?.getAttribute('class')
-                ?.includes('azad_disabled'))
-        {
-          const preview_authorised = await getBoolean(
-            'preview_features_enabled');
-          if (!preview_authorised) {
-            alert(ui_messages.preview_feature_disabled);
-            value = false;
-          }
-        }
+        // All features are enabled in this open source fork - no paywall checks
         storeBoolean(key, value);
         if (elem) {
           updateCheckBoxElement(elem, value);
@@ -129,7 +119,8 @@ async function setCheckboxElemClickHandlers(
 
 export async function registerTableTypeRadioButtons() {
   const SETTINGS_KEY = 'azad_table_type';
-  const preview_authorised = await getBoolean('preview_features_enabled');
+  // All features are enabled in this open source fork
+  const preview_authorised = true;
   const radio_buttons = Array.from(
     document.getElementsByClassName('azad_table_type'));
 

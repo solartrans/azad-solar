@@ -497,11 +497,8 @@ async function handleAuthorisationRequest(
   feature_id: string,
   control_port: msg.ControlPort | null
 ): Promise<void> {
-  const ext_pay_authorised = await extpay.check_authorised();
-
-  const authorised = feature_id == 'premium_preview' ?
-    ext_pay_authorised :
-    false;
+  // All features are enabled in this open source fork
+  const authorised = true;
 
   settings.storeBoolean('preview_features_enabled', authorised);
 
