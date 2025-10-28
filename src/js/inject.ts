@@ -443,10 +443,15 @@ async function autoTriggerExport(): Promise<void> {
 
 function isOrderHistoryPage(): boolean {
   const url = window.location.href;
-  // Match order history pages including query parameters (ref_=, etc.)
+
+  // Exclude order detail pages
+  if (url.includes('order-details') || url.includes('order-detail')) {
+    return false;
+  }
+
+  // Match only order history list pages
   return url.includes('/gp/css/order-history') ||
-         url.includes('/order-history') ||
-         url.includes('/your-orders');
+         url.includes('/your-orders/orders');
 }
 
 function initialiseContentScript() {
