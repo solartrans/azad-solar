@@ -16,10 +16,14 @@ function string_or_null(s: string | null | undefined) {
 
 export async function download(
   table: HTMLTableElement,
-  sums_for_spreadsheet: boolean
+  sums_for_spreadsheet: boolean,
+  accountName?: string
 ): Promise<void> {
   const csv_string = make_csv_string(table, sums_for_spreadsheet);
-  await save_file.save(csv_string, 'amazon_order_history.csv');
+  const filename = accountName
+    ? `amazon_order_history_${accountName}.csv`
+    : 'amazon_order_history.csv';
+  await save_file.save(csv_string, filename);
 }
 
 export async function send_csv_to_ezp_peer(

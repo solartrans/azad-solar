@@ -352,6 +352,27 @@ function enableQuickExportButton(): void {
   }
 }
 
+function getAccountName(): string {
+  // Extract account name from the navigation bar
+  // <span class="nav-line-1">Hello, Richard</span>
+  const navLine1Elements = document.querySelectorAll('.nav-line-1');
+
+  for (const element of Array.from(navLine1Elements)) {
+    const text = element.textContent?.trim();
+    if (text && text.startsWith('Hello')) {
+      // Extract name after "Hello, "
+      const name = text.replace(/^Hello,?\s*/i, '').trim();
+      if (name) {
+        console.log('Extracted account name:', name);
+        return name.toLowerCase().replace(/\s+/g, '_');
+      }
+    }
+  }
+
+  console.log('Could not extract account name, using default');
+  return 'user';
+}
+
 async function handleQuickExportClick(): Promise<void> {
   if (!quick_export_button) return;
 
@@ -377,9 +398,12 @@ async function handleQuickExportClick(): Promise<void> {
     const table = await fetchAndShowOrdersByRange(start_date, end_date, false);
 
     if (table) {
-      // Download CSV
+      // Get account name for filename
+      const accountName = getAccountName();
+
+      // Download CSV with account name
       console.log('Quick export: downloading CSV');
-      await csv.download(table, false);
+      await csv.download(table, false, accountName);
 
       // Update button to show completion
       quick_export_button.textContent = 'CSV Process Complete';
@@ -392,6 +416,11 @@ async function handleQuickExportClick(): Promise<void> {
     quick_export_button.textContent = 'Error - Try Again';
     quick_export_button.disabled = false;
   }
+}
+
+async function autoTriggerExport(): Promise<void> {
+  console.log('Auto-triggering export on page load');
+  await handleQuickExportClick();
 }
 
 function initialiseContentScript() {
@@ -407,9 +436,11 @@ function initialiseContentScript() {
     // Create the quick export button
     createQuickExportButton();
 
-    // Initialize periods and enable button when ready
+    // Initialize periods and automatically trigger export when ready
     periods.init(ports.getBackgroundPort).then(() => {
       enableQuickExportButton();
+      // Automatically trigger export after initialization
+      autoTriggerExport();
     });
   }
 }
