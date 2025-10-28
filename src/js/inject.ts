@@ -26,6 +26,7 @@ let scheduler: request_scheduler.IRequestScheduler | null = null;
 let years: number[] = [];
 let stats_timeout: NodeJS.Timeout | null = null;
 let quick_export_button: HTMLButtonElement | null = null;
+let cached_account_name: string | null = null;
 
 const SITE: string = urls.getSite();
 
@@ -352,11 +353,11 @@ function enableQuickExportButton(): void {
   }
 }
 
-function getAccountName(): string {
-  // Extract account name from the navigation bar
+function extractAccountNameFromPage(): string {
+  // Extract account name from the navigation bar EARLY, before table rendering
   // <span id="nav-link-accountList-nav-line-1" class="nav-line-1 nav-progressive-content">Hello, Jozef</span>
 
-  console.log('Attempting to extract account name...');
+  console.log('Attempting to extract account name from page...');
 
   // Try multiple selectors
   const selectors = [
@@ -388,6 +389,16 @@ function getAccountName(): string {
   return 'user';
 }
 
+function getAccountName(): string {
+  // Return cached account name (extracted during initialization)
+  if (cached_account_name) {
+    console.log('Using cached account name:', cached_account_name);
+    return cached_account_name;
+  }
+  console.warn('No cached account name available, using default "user"');
+  return 'user';
+}
+
 async function handleQuickExportClick(): Promise<void> {
   if (!quick_export_button) return;
 
@@ -413,7 +424,7 @@ async function handleQuickExportClick(): Promise<void> {
     const table = await fetchAndShowOrdersByRange(start_date, end_date, false);
 
     if (table) {
-      // Get account name for filename
+      // Get account name for filename (from cached value)
       const accountName = getAccountName();
 
       // Download CSV with account name
@@ -448,6 +459,10 @@ function initialiseContentScript() {
   const inIframe = pageType.isIframe();
 
   if (!inIframe) {
+    // Extract account name EARLY before any table rendering
+    cached_account_name = extractAccountNameFromPage();
+    console.log('Cached account name for later use:', cached_account_name);
+
     // Create the quick export button
     createQuickExportButton();
 
