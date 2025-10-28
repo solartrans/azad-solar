@@ -13,6 +13,11 @@ export interface ITransaction {
   info_string: string;
 }
 
+interface ITrackingPageData {
+  tracking_id: string;
+  one_time_passcode: string;
+}
+
 export enum Delivered {
   YES = 1,
   NO = 2,
@@ -90,44 +95,74 @@ export async function get_shipments(
   return shipments;
 }
 
-function id_from_tracking_page(evt: req.Event): string {
+function data_from_tracking_page(evt: req.Event): ITrackingPageData {
   const html_text = evt.target.responseText;
   const doc = util.parseStringToDOM(html_text);
   const body = doc.body;
-  const xpath = "//div[contains(@class, 'pt-delivery-card-trackingId')]";
 
-  const id: string|null = extraction.getField2(
-    [xpath],
+  // Extract tracking ID
+  const id_xpath = "//div[contains(@class, 'pt-delivery-card-trackingId')]";
+  const tracking_id: string|null = extraction.getField2(
+    [id_xpath],
     body,
     '',
-    'id_from_tracking_page'
+    'tracking_id_from_tracking_page'
   );
 
-  return id;
+  // Extract one-time passcode from alert content
+  // HTML: <div class="a-alert-content">Your one-time password is 805331...</div>
+  const otp_xpath = "//div[contains(@class, 'a-alert-content')]";
+  const alert_content: string|null = extraction.getField2(
+    [otp_xpath],
+    body,
+    '',
+    'otp_from_tracking_page'
+  );
+
+  let one_time_passcode = '';
+  if (alert_content) {
+    // Extract digits after "one-time password is"
+    const match = alert_content.match(/one-time password is (\d+)/i);
+    if (match && match[1]) {
+      one_time_passcode = match[1];
+    }
+  }
+
+  return {
+    tracking_id: tracking_id || '',
+    one_time_passcode: one_time_passcode
+  };
 }
 
-async function get_tracking_id(
+async function get_tracking_data(
   amazon_tracking_url: string,
   scheduler: request_scheduler.IRequestScheduler,
-): Promise<string> {
+): Promise<ITrackingPageData> {
   try {
-    const decorated_id = await req.makeAsyncStaticRequest(
+    const data = await req.makeAsyncStaticRequest(
       amazon_tracking_url,
-      'get_tracking_id',
-      id_from_tracking_page,
+      'get_tracking_data',
+      data_from_tracking_page,
       scheduler,
       '9999',
       false,  // nocache=false: cached response is acceptable
-      'get_tracking_id',
+      'get_tracking_data',
     );
-    const stripped_id = decorated_id.replace(/^.*: /, '');
-    return stripped_id;
+    // Strip "Tracking ID: " prefix if present
+    const stripped_id = data.tracking_id.replace(/^.*: /, '');
+    return {
+      tracking_id: stripped_id,
+      one_time_passcode: data.one_time_passcode
+    };
   } catch (ex) {
     console.warn(
-      'while trying to get tracking_id from', amazon_tracking_url, 'we got',
+      'while trying to get tracking_data from', amazon_tracking_url, 'we got',
       ex
     );
-    return '';
+    return {
+      tracking_id: '',
+      one_time_passcode: ''
+    };
   }
 }
 
@@ -229,17 +264,31 @@ async function shipment_from_elem(
 
   // Try to get tracking ID directly from the order page first
   let tracking_id: string = get_tracking_id_from_text(shipment_elem);
+  let one_time_passcode: string = '';
 
-  // If not found, fall back to fetching the separate tracking page
-  if (tracking_id === '' && tracking_link !== '') {
-    tracking_id = await get_tracking_id(tracking_link, scheduler);
+  // Fetch the tracking page if we have a tracking link
+  // We need to do this to get the OTP which is only on the tracking page
+  if (tracking_link !== '') {
+    const tracking_data = await get_tracking_data(tracking_link, scheduler);
+
+    // Use tracking ID from tracking page if we didn't find it on the order page
+    if (tracking_id === '') {
+      tracking_id = tracking_data.tracking_id;
+    }
+
+    // Get OTP from tracking page
+    one_time_passcode = tracking_data.one_time_passcode;
+  }
+
+  // Fallback: try to get OTP from shipment element (older format or different page layout)
+  if (one_time_passcode === '') {
+    one_time_passcode = get_one_time_passcode(shipment_elem);
   }
 
   const shipment_id = tracking_id != '' ?
                       extract_shipment_id(tracking_link) :
                       '';
   const refund: string = get_refund(shipment_elem);
-  const one_time_passcode: string = get_one_time_passcode(shipment_elem);
 
   return {
     shipment_id: shipment_id,
