@@ -403,6 +403,18 @@ async function handleQuickExportClick(): Promise<void> {
   try {
     console.log('Starting automatic export...');
 
+    // Initialize scheduler if needed so we can clear its cache
+    if (!scheduler) {
+      resetScheduler('initial_setup');
+    }
+
+    // Clear all caches first to ensure fresh data
+    console.log('Clearing all caches for fresh data scrape...');
+    getScheduler().cache().clear();  // Request scheduler cache
+    transaction.clearCache();         // Transaction cache
+    periods.clearCache();             // Periods cache
+    console.log('All caches cleared');
+
     // Set table type to shipments
     await settings.storeString('azad_table_type', 'shipments');
 
