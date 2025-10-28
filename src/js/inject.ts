@@ -354,22 +354,37 @@ function enableQuickExportButton(): void {
 
 function getAccountName(): string {
   // Extract account name from the navigation bar
-  // <span class="nav-line-1">Hello, Richard</span>
-  const navLine1Elements = document.querySelectorAll('.nav-line-1');
+  // <span id="nav-link-accountList-nav-line-1" class="nav-line-1 nav-progressive-content">Hello, Jozef</span>
 
-  for (const element of Array.from(navLine1Elements)) {
-    const text = element.textContent?.trim();
-    if (text && text.startsWith('Hello')) {
-      // Extract name after "Hello, "
-      const name = text.replace(/^Hello,?\s*/i, '').trim();
-      if (name) {
-        console.log('Extracted account name:', name);
-        return name.toLowerCase().replace(/\s+/g, '_');
+  console.log('Attempting to extract account name...');
+
+  // Try multiple selectors
+  const selectors = [
+    '#nav-link-accountList-nav-line-1',  // Most specific
+    '.nav-line-1',                        // Class selector
+    '[class*="nav-line-1"]',              // Contains class
+  ];
+
+  for (const selector of selectors) {
+    const elements = document.querySelectorAll(selector);
+    console.log(`Selector "${selector}" found ${elements.length} elements`);
+
+    for (const element of Array.from(elements)) {
+      const text = element.textContent?.trim();
+      console.log(`Element text: "${text}"`);
+
+      if (text && text.match(/^Hello,?\s+/i)) {
+        // Extract name after "Hello, " or "Hello "
+        const name = text.replace(/^Hello,?\s+/i, '').trim();
+        if (name && name.length > 0) {
+          console.log('Successfully extracted account name:', name);
+          return name.toLowerCase().replace(/\s+/g, '_');
+        }
       }
     }
   }
 
-  console.log('Could not extract account name, using default');
+  console.warn('Could not extract account name from any selector, using default "user"');
   return 'user';
 }
 
