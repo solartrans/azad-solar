@@ -280,19 +280,46 @@ function handleMessageFromBackgroundToRootContentPage(msg: any): void {
 }
 
 function createQuickExportButton(): void {
+  console.log('createQuickExportButton called, URL:', window.location.href);
+
+  // Check if we're on the order history page
+  const url = window.location.href;
+  const isOrderHistoryPage = url.includes('/order-history') || url.includes('/gp/css/order-history') || url.includes('/your-orders');
+
+  if (!isOrderHistoryPage) {
+    console.log('Not on order history page, skipping button creation');
+    return;
+  }
+
   // Find the "Your Orders" heading
   const headings = document.querySelectorAll('h1');
+  console.log('Found', headings.length, 'h1 elements');
   let ordersHeading: HTMLElement | null = null;
 
   for (const heading of Array.from(headings)) {
-    if (heading.textContent?.includes('Your Orders')) {
+    console.log('h1 text:', heading.textContent);
+    if (heading.textContent?.includes('Your Orders') || heading.textContent?.includes('Your orders')) {
       ordersHeading = heading as HTMLElement;
       break;
     }
   }
 
   if (!ordersHeading) {
-    console.log('Could not find "Your Orders" heading');
+    console.log('Could not find "Your Orders" heading, will retry after DOM loads');
+    // Wait for DOM to be fully loaded and try again
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => createQuickExportButton(), 1000);
+      });
+    } else {
+      setTimeout(() => createQuickExportButton(), 1000);
+    }
+    return;
+  }
+
+  // Don't create duplicate buttons
+  if (quick_export_button && document.contains(quick_export_button)) {
+    console.log('Button already exists');
     return;
   }
 
@@ -313,7 +340,7 @@ function createQuickExportButton(): void {
 
   // Insert button after the heading
   ordersHeading.insertAdjacentElement('afterend', quick_export_button);
-  console.log('Quick export button created');
+  console.log('Quick export button created successfully');
 }
 
 function enableQuickExportButton(): void {
