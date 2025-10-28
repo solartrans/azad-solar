@@ -400,13 +400,9 @@ function getAccountName(): string {
 }
 
 async function handleQuickExportClick(): Promise<void> {
-  if (!quick_export_button) return;
-
-  // Disable button during processing
-  quick_export_button.disabled = true;
-  quick_export_button.textContent = 'Processing...';
-
   try {
+    console.log('Starting automatic export...');
+
     // Set table type to shipments
     await settings.storeString('azad_table_type', 'shipments');
 
@@ -418,7 +414,7 @@ async function handleQuickExportClick(): Promise<void> {
     const start_date = new Date();
     start_date.setMonth(start_date.getMonth() - 1);
 
-    console.log(`Quick export: scraping shipments from ${start_date} to ${end_date}`);
+    console.log(`Auto export: scraping shipments from ${start_date} to ${end_date}`);
 
     // Trigger the scraping and wait for the table
     const table = await fetchAndShowOrdersByRange(start_date, end_date, false);
@@ -428,19 +424,15 @@ async function handleQuickExportClick(): Promise<void> {
       const accountName = getAccountName();
 
       // Download CSV with account name
-      console.log('Quick export: downloading CSV');
+      console.log('Auto export: downloading CSV');
       await csv.download(table, false, accountName);
 
-      // Update button to show completion
-      quick_export_button.textContent = 'CSV Process Complete';
-      console.log('Quick export: complete');
+      console.log('Auto export: complete');
     } else {
       throw new Error('Table generation failed');
     }
   } catch (error) {
-    console.error('Quick export error:', error);
-    quick_export_button.textContent = 'Error - Try Again';
-    quick_export_button.disabled = false;
+    console.error('Auto export error:', error);
   }
 }
 
@@ -463,12 +455,8 @@ function initialiseContentScript() {
     cached_account_name = extractAccountNameFromPage();
     console.log('Cached account name for later use:', cached_account_name);
 
-    // Create the quick export button
-    createQuickExportButton();
-
     // Initialize periods and automatically trigger export when ready
     periods.init(ports.getBackgroundPort).then(() => {
-      enableQuickExportButton();
       // Automatically trigger export after initialization
       autoTriggerExport();
     });
