@@ -441,6 +441,14 @@ async function autoTriggerExport(): Promise<void> {
   await handleQuickExportClick();
 }
 
+function isOrderHistoryPage(): boolean {
+  const url = window.location.href;
+  // Match order history pages including query parameters (ref_=, etc.)
+  return url.includes('/gp/css/order-history') ||
+         url.includes('/order-history') ||
+         url.includes('/your-orders');
+}
+
 function initialiseContentScript() {
   console.log('Amazon Order History Reporter content script initialising');
   console.log(git_hash.text());
@@ -450,7 +458,9 @@ function initialiseContentScript() {
 
   const inIframe = pageType.isIframe();
 
-  if (!inIframe) {
+  if (!inIframe && isOrderHistoryPage()) {
+    console.log('On order history page - will auto-trigger export');
+
     // Extract account name EARLY before any table rendering
     cached_account_name = extractAccountNameFromPage();
     console.log('Cached account name for later use:', cached_account_name);
@@ -460,6 +470,8 @@ function initialiseContentScript() {
       // Automatically trigger export after initialization
       autoTriggerExport();
     });
+  } else {
+    console.log('Not on order history page - skipping auto-export');
   }
 }
 
