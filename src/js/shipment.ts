@@ -149,53 +149,26 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
 
     carousel_items.forEach((item_elem: Node, idx: number) => {
       try {
-        // Try multiple selectors for product image - Amazon changes these frequently
-        let img: Node | null = null;
-        let product_name = '';
-
-        // Strategy 1: Try class='asin-image'
+        // Extract ASIN from href="/gp/product/B0D3J71RM7?..."
+        let asin = '';
         try {
-          img = extraction.findSingleNodeValue(
-            ".//img[@class='asin-image']",
+          const link = extraction.findSingleNodeValue(
+            ".//a[contains(@href, '/gp/product/')]",
             item_elem as HTMLElement,
-            'tracking_page_item_image_v1'
+            'tracking_page_item_link'
           );
-          product_name = (img as HTMLImageElement)?.alt || '';
+          const href = (link as HTMLAnchorElement)?.href || '';
+          // Extract ASIN: /gp/product/B0D3J71RM7 -> B0D3J71RM7
+          const asin_match = href.match(/\/gp\/product\/([A-Z0-9]+)/);
+          if (asin_match && asin_match[1]) {
+            asin = asin_match[1];
+            console.log(`Item ${idx}: Extracted ASIN: ${asin}`);
+          }
         } catch (e) {
-          console.log(`Item ${idx}: Strategy 1 failed (asin-image class)`);
+          console.log(`Item ${idx}: Failed to extract ASIN from link`);
         }
 
-        // Strategy 2: Try any img with alt attribute inside the carousel card
-        if (!product_name) {
-          try {
-            img = extraction.findSingleNodeValue(
-              ".//img[@alt]",
-              item_elem as HTMLElement,
-              'tracking_page_item_image_v2'
-            );
-            product_name = (img as HTMLImageElement)?.alt || '';
-            console.log(`Item ${idx}: Strategy 2 succeeded (any img with alt)`);
-          } catch (e) {
-            console.log(`Item ${idx}: Strategy 2 failed (any img with alt)`);
-          }
-        }
-
-        // Strategy 3: Try to find product name from link text
-        if (!product_name) {
-          try {
-            const link = extraction.findSingleNodeValue(
-              ".//a[contains(@href, '/dp/')]",
-              item_elem as HTMLElement,
-              'tracking_page_item_link'
-            );
-            product_name = link?.textContent?.trim() || '';
-            console.log(`Item ${idx}: Strategy 3 - found link text: ${product_name}`);
-          } catch (e) {
-            console.log(`Item ${idx}: Strategy 3 failed (link text)`);
-          }
-        }
-
-        // Extract quantity from span (default to 1 if not found)
+        // Extract quantity from <span class="images-quantity-label"> (default to 1 if not found)
         let quantity = 1;
         try {
           const qty_span = extraction.findSingleNodeValue(
@@ -208,21 +181,21 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
             const parsed_qty = parseInt(qty_text, 10);
             if (!isNaN(parsed_qty)) {
               quantity = parsed_qty;
+              console.log(`Item ${idx}: Extracted quantity: ${quantity}`);
             }
           }
         } catch (qty_err) {
-          // No quantity label = 1 item
-          quantity = 1;
+          // No quantity label = 1 item (default)
         }
 
-        if (product_name) {
-          console.log(`Item ${idx}: Successfully extracted - ${quantity}x ${product_name.substring(0, 50)}...`);
+        if (asin) {
+          console.log(`Item ${idx}: Successfully extracted - ${quantity}x ${asin}`);
           items_from_tracking.push({
-            name: product_name,
+            name: asin,
             quantity: quantity
           });
         } else {
-          console.warn(`Item ${idx}: Could not extract product name, skipping`);
+          console.warn(`Item ${idx}: Could not extract ASIN, skipping`);
         }
       } catch (item_err) {
         console.warn(`Error extracting item ${idx} from tracking page:`, item_err);
