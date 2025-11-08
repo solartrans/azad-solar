@@ -136,11 +136,12 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
   }
 
   // Extract items from carousel
-  // HTML: <ol class="a-carousel"><li class="a-carousel-card"><a class="image-wrapper">...
+  // HTML: <div class="pt-floating-map-card"><ol class="a-carousel"><li class="a-carousel-card">...
+  // Restrict to pt-floating-map-card to exclude suggested items and other carousels
   const items_from_tracking: ITrackingPageItem[] = [];
   try {
     const carousel_items = extraction.findMultipleNodeValues(
-      "//ol[contains(@class, 'a-carousel')]/li[contains(@class, 'a-carousel-card')]",
+      "//div[@class='pt-floating-map-card']//li[contains(@class, 'a-carousel-card')]",
       body
     );
 
