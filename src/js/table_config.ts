@@ -593,6 +593,45 @@ const SHIPMENT_COLS: colspec.ColSpec[] = [
   },
 ];
 
+// Add dynamic item columns (up to 10 items = 20 columns)
+for (let i = 0; i < 10; i++) {
+  const item_number = i + 1;
+
+  // Quantity column
+  SHIPMENT_COLS.push({
+    field_name: `item ${item_number} qty`,
+    render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
+      const s = entity as order_util.IEnrichedShipment;
+      const items = s.items_from_tracking;
+      if (items && items.length > i) {
+        td.textContent = items[i].quantity.toString();
+      } else {
+        td.textContent = '';
+      }
+      return null;
+    },
+    is_numeric: true,
+    visibility: shipment_info_enabled,
+  });
+
+  // Name column
+  SHIPMENT_COLS.push({
+    field_name: `item ${item_number} name`,
+    render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
+      const s = entity as order_util.IEnrichedShipment;
+      const items = s.items_from_tracking;
+      if (items && items.length > i) {
+        td.textContent = items[i].name;
+      } else {
+        td.textContent = '';
+      }
+      return null;
+    },
+    is_numeric: false,
+    visibility: shipment_info_enabled,
+  });
+}
+
 const TRANSACTION_COLS: colspec.ColSpec[] = [
   {
     field_name: 'date',

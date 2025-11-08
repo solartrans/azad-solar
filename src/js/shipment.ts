@@ -13,9 +13,15 @@ export interface ITransaction {
   info_string: string;
 }
 
+interface ITrackingPageItem {
+  name: string;
+  quantity: number;
+}
+
 interface ITrackingPageData {
   tracking_id: string;
   one_time_passcode: string;
+  items_from_tracking: ITrackingPageItem[];
 }
 
 export enum Delivered {
@@ -32,6 +38,7 @@ export interface IShipment {
   tracking_link: string;
   tracking_id: string;
   one_time_passcode: string;
+  items_from_tracking: ITrackingPageItem[];
   transaction: ITransaction|null,
   refund: string;
 }
@@ -128,9 +135,65 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
     }
   }
 
+  // Extract items from carousel
+  // HTML: <ol class="a-carousel"><li class="a-carousel-card"><a class="image-wrapper">...
+  const items_from_tracking: ITrackingPageItem[] = [];
+  try {
+    const carousel_items = extraction.findMultipleNodeValues(
+      "//ol[contains(@class, 'a-carousel')]/li[contains(@class, 'a-carousel-card')]",
+      body
+    );
+
+    carousel_items.forEach((item_elem: Node) => {
+      try {
+        // Extract product name from img alt attribute
+        const img = extraction.findSingleNodeValue(
+          ".//img[@class='asin-image']",
+          item_elem as HTMLElement,
+          'tracking_page_item_image'
+        );
+        const product_name = (img as HTMLImageElement)?.alt || '';
+
+        // Extract quantity from span (default to 1 if not found)
+        let quantity = 1;
+        try {
+          const qty_span = extraction.findSingleNodeValue(
+            ".//span[contains(@class, 'images-quantity-label')]",
+            item_elem as HTMLElement,
+            'tracking_page_item_quantity'
+          );
+          if (qty_span) {
+            const qty_text = qty_span.textContent?.trim() || '1';
+            const parsed_qty = parseInt(qty_text, 10);
+            if (!isNaN(parsed_qty)) {
+              quantity = parsed_qty;
+            }
+          }
+        } catch (qty_err) {
+          // No quantity label = 1 item
+          quantity = 1;
+        }
+
+        if (product_name) {
+          items_from_tracking.push({
+            name: product_name,
+            quantity: quantity
+          });
+        }
+      } catch (item_err) {
+        console.warn('Error extracting item from tracking page:', item_err);
+      }
+    });
+
+    console.log(`Extracted ${items_from_tracking.length} items from tracking page`);
+  } catch (err) {
+    console.warn('Error extracting items from tracking page carousel:', err);
+  }
+
   return {
     tracking_id: tracking_id || '',
-    one_time_passcode: one_time_passcode
+    one_time_passcode: one_time_passcode,
+    items_from_tracking: items_from_tracking
   };
 }
 
@@ -152,7 +215,8 @@ async function get_tracking_data(
     const stripped_id = data.tracking_id.replace(/^.*: /, '');
     return {
       tracking_id: stripped_id,
-      one_time_passcode: data.one_time_passcode
+      one_time_passcode: data.one_time_passcode,
+      items_from_tracking: data.items_from_tracking
     };
   } catch (ex) {
     console.warn(
@@ -161,7 +225,8 @@ async function get_tracking_data(
     );
     return {
       tracking_id: '',
-      one_time_passcode: ''
+      one_time_passcode: '',
+      items_from_tracking: []
     };
   }
 }
@@ -265,9 +330,10 @@ async function shipment_from_elem(
   // Try to get tracking ID directly from the order page first
   let tracking_id: string = get_tracking_id_from_text(shipment_elem);
   let one_time_passcode: string = '';
+  let items_from_tracking: ITrackingPageItem[] = [];
 
   // Fetch the tracking page if we have a tracking link
-  // We need to do this to get the OTP which is only on the tracking page
+  // We need to do this to get the OTP and items which are only on the tracking page
   if (tracking_link !== '') {
     const tracking_data = await get_tracking_data(tracking_link, scheduler);
 
@@ -278,6 +344,9 @@ async function shipment_from_elem(
 
     // Get OTP from tracking page
     one_time_passcode = tracking_data.one_time_passcode;
+
+    // Get items from tracking page
+    items_from_tracking = tracking_data.items_from_tracking;
   }
 
   // Fallback: try to get OTP from shipment element (older format or different page layout)
@@ -298,6 +367,7 @@ async function shipment_from_elem(
     tracking_link: tracking_link,
     tracking_id: tracking_id,
     one_time_passcode: one_time_passcode,
+    items_from_tracking: items_from_tracking,
     transaction: null,
     refund: refund,
   };

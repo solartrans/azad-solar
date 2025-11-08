@@ -31,6 +31,7 @@ export async function enriched_shipments_from_orders(
         tracking_link: '',
         tracking_id: '',
         one_time_passcode: '',
+        items_from_tracking: [],
         transaction: null,
         refund: '',
       });
@@ -44,6 +45,7 @@ export async function enriched_shipments_from_orders(
       tracking_link: s.tracking_link,
       tracking_id: s.tracking_id,
       one_time_passcode: s.one_time_passcode,
+      items_from_tracking: s.items_from_tracking,
       transaction: s.transaction,
       refund: s.refund,
     }));
