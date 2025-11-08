@@ -144,15 +144,55 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
       body
     );
 
-    carousel_items.forEach((item_elem: Node) => {
+    console.log(`Found ${carousel_items.length} carousel items on tracking page`);
+
+    carousel_items.forEach((item_elem: Node, idx: number) => {
       try {
-        // Extract product name from img alt attribute
-        const img = extraction.findSingleNodeValue(
-          ".//img[@class='asin-image']",
-          item_elem as HTMLElement,
-          'tracking_page_item_image'
-        );
-        const product_name = (img as HTMLImageElement)?.alt || '';
+        // Try multiple selectors for product image - Amazon changes these frequently
+        let img: Node | null = null;
+        let product_name = '';
+
+        // Strategy 1: Try class='asin-image'
+        try {
+          img = extraction.findSingleNodeValue(
+            ".//img[@class='asin-image']",
+            item_elem as HTMLElement,
+            'tracking_page_item_image_v1'
+          );
+          product_name = (img as HTMLImageElement)?.alt || '';
+        } catch (e) {
+          console.log(`Item ${idx}: Strategy 1 failed (asin-image class)`);
+        }
+
+        // Strategy 2: Try any img with alt attribute inside the carousel card
+        if (!product_name) {
+          try {
+            img = extraction.findSingleNodeValue(
+              ".//img[@alt]",
+              item_elem as HTMLElement,
+              'tracking_page_item_image_v2'
+            );
+            product_name = (img as HTMLImageElement)?.alt || '';
+            console.log(`Item ${idx}: Strategy 2 succeeded (any img with alt)`);
+          } catch (e) {
+            console.log(`Item ${idx}: Strategy 2 failed (any img with alt)`);
+          }
+        }
+
+        // Strategy 3: Try to find product name from link text
+        if (!product_name) {
+          try {
+            const link = extraction.findSingleNodeValue(
+              ".//a[contains(@href, '/dp/')]",
+              item_elem as HTMLElement,
+              'tracking_page_item_link'
+            );
+            product_name = link?.textContent?.trim() || '';
+            console.log(`Item ${idx}: Strategy 3 - found link text: ${product_name}`);
+          } catch (e) {
+            console.log(`Item ${idx}: Strategy 3 failed (link text)`);
+          }
+        }
 
         // Extract quantity from span (default to 1 if not found)
         let quantity = 1;
@@ -175,13 +215,16 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
         }
 
         if (product_name) {
+          console.log(`Item ${idx}: Successfully extracted - ${quantity}x ${product_name.substring(0, 50)}...`);
           items_from_tracking.push({
             name: product_name,
             quantity: quantity
           });
+        } else {
+          console.warn(`Item ${idx}: Could not extract product name, skipping`);
         }
       } catch (item_err) {
-        console.warn('Error extracting item from tracking page:', item_err);
+        console.warn(`Error extracting item ${idx} from tracking page:`, item_err);
       }
     });
 
