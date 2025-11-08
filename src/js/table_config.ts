@@ -603,8 +603,9 @@ for (let i = 0; i < 10; i++) {
     render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
       const s = entity as order_util.IEnrichedShipment;
       const items = s.items_from_tracking;
-      if (items && items.length > i) {
-        td.textContent = items[i].quantity.toString();
+      const index = item_number - 1;
+      if (items && items.length > index) {
+        td.textContent = items[index].quantity.toString();
       } else {
         td.textContent = '';
       }
@@ -620,8 +621,9 @@ for (let i = 0; i < 10; i++) {
     render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
       const s = entity as order_util.IEnrichedShipment;
       const items = s.items_from_tracking;
-      if (items && items.length > i) {
-        td.textContent = items[i].name;
+      const index = item_number - 1;
+      if (items && items.length > index) {
+        td.textContent = items[index].name;
       } else {
         td.textContent = '';
       }
