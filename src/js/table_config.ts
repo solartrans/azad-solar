@@ -604,10 +604,13 @@ for (let i = 0; i < 10; i++) {
       const s = entity as order_util.IEnrichedShipment;
       const items = s.items_from_tracking;
       const index = item_number - 1;
+      console.log(`[Item ${item_number} qty] items_from_tracking:`, items, 'length:', items?.length, 'index:', index);
       if (items && items.length > index) {
         td.textContent = items[index].quantity.toString();
+        console.log(`[Item ${item_number} qty] Set quantity to:`, items[index].quantity);
       } else {
         td.textContent = '';
+        console.log(`[Item ${item_number} qty] No item at index ${index}`);
       }
       return null;
     },
@@ -622,10 +625,13 @@ for (let i = 0; i < 10; i++) {
       const s = entity as order_util.IEnrichedShipment;
       const items = s.items_from_tracking;
       const index = item_number - 1;
+      console.log(`[Item ${item_number} name] items_from_tracking:`, items, 'length:', items?.length, 'index:', index);
       if (items && items.length > index) {
         td.textContent = items[index].name;
+        console.log(`[Item ${item_number} name] Set name to:`, items[index].name);
       } else {
         td.textContent = '';
+        console.log(`[Item ${item_number} name] No item at index ${index}`);
       }
       return null;
     },

@@ -36,19 +36,22 @@ export async function enriched_shipments_from_orders(
         refund: '',
       });
     }
-    return ss.map( s => ({
-      shipment_id: s.shipment_id,
-      order: o,
-      items: s.items,
-      delivered: s.delivered,
-      status: s.status,
-      tracking_link: s.tracking_link,
-      tracking_id: s.tracking_id,
-      one_time_passcode: s.one_time_passcode,
-      items_from_tracking: s.items_from_tracking,
-      transaction: s.transaction,
-      refund: s.refund,
-    }));
+    return ss.map( s => {
+      console.log('[enriched_shipments] Shipment items_from_tracking:', s.items_from_tracking, 'for order:', o.id);
+      return {
+        shipment_id: s.shipment_id,
+        order: o,
+        items: s.items,
+        delivered: s.delivered,
+        status: s.status,
+        tracking_link: s.tracking_link,
+        tracking_id: s.tracking_id,
+        one_time_passcode: s.one_time_passcode,
+        items_from_tracking: s.items_from_tracking,
+        transaction: s.transaction,
+        refund: s.refund,
+      };
+    });
     return shipments;
   });
   return shipments;
