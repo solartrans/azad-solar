@@ -8,7 +8,8 @@ import * as shipment from './shipment';
 import * as util from './util';
 
 export interface IEnrichedShipment extends shipment.IShipment {
-  order: order.ISyncOrder
+  order: order.ISyncOrder;
+  additional_order_ids?: string[];
 }
 
 export interface IEnrichedItem extends item.IItem {
@@ -20,7 +21,7 @@ export async function enriched_shipments_from_orders(
 ): Promise<IEnrichedShipment[]> {
   const oop = orders.map(o => o.sync());
   const oo = await util.get_settled_and_discard_rejects(oop);
-  const shipments: IEnrichedShipment[] = oo.flatMap( o => {
+  const all_shipments: IEnrichedShipment[] = oo.flatMap( o => {
     const ss = o.shipments;
     if (ss.length == 0) {
       ss.push({
@@ -48,10 +49,48 @@ export async function enriched_shipments_from_orders(
       items_from_tracking: s.items_from_tracking,
       transaction: s.transaction,
       refund: s.refund,
+      additional_order_ids: [],
     }));
-    return shipments;
   });
-  return shipments;
+
+  // Deduplicate by tracking_id: keep first chronologically, add other order IDs to additional_order_ids
+  const tracking_id_map = new Map<string, IEnrichedShipment[]>();
+
+  // Group shipments by tracking_id
+  all_shipments.forEach(s => {
+    const tracking_id = s.tracking_id || '';
+    if (!tracking_id_map.has(tracking_id)) {
+      tracking_id_map.set(tracking_id, []);
+    }
+    tracking_id_map.get(tracking_id)!.push(s);
+  });
+
+  // For each tracking_id group, keep first chronologically and collect additional order IDs
+  const deduplicated_shipments: IEnrichedShipment[] = [];
+  tracking_id_map.forEach((group, tracking_id) => {
+    if (group.length === 1) {
+      // No duplicates, just add it
+      deduplicated_shipments.push(group[0]);
+    } else {
+      // Sort by order date (chronologically)
+      group.sort((a, b) => {
+        const date_a = new Date(a.order.date).getTime();
+        const date_b = new Date(b.order.date).getTime();
+        return date_a - date_b;
+      });
+
+      // Keep the first one
+      const first_shipment = group[0];
+
+      // Collect additional order IDs from the rest
+      const additional_ids = group.slice(1).map(s => s.order.id);
+      first_shipment.additional_order_ids = additional_ids;
+
+      deduplicated_shipments.push(first_shipment);
+    }
+  });
+
+  return deduplicated_shipments;
 }
 
 export async function enriched_items_from_orders(

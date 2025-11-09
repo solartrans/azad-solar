@@ -615,9 +615,9 @@ for (let i = 0; i < 10; i++) {
     visibility: shipment_info_enabled,
   });
 
-  // Name column
+  // ASIN column
   SHIPMENT_COLS.push({
-    field_name: `item ${item_number} name`,
+    field_name: `item ${item_number} ASIN`,
     render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
       const s = entity as order_util.IEnrichedShipment;
       const items = s.items_from_tracking;
@@ -633,6 +633,22 @@ for (let i = 0; i < 10; i++) {
     visibility: shipment_info_enabled,
   });
 }
+
+// Add column for additional order IDs (from deduplicated tracking numbers)
+SHIPMENT_COLS.push({
+  field_name: 'additional order IDs',
+  render_func: async function(entity: azad_entity.IEntity, td: HTMLElement) {
+    const s = entity as order_util.IEnrichedShipment;
+    if (s.additional_order_ids && s.additional_order_ids.length > 0) {
+      td.textContent = s.additional_order_ids.join(', ');
+    } else {
+      td.textContent = '';
+    }
+    return null;
+  },
+  is_numeric: false,
+  visibility: shipment_info_enabled,
+});
 
 const TRANSACTION_COLS: colspec.ColSpec[] = [
   {
