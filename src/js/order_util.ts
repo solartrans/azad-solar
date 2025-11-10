@@ -54,19 +54,29 @@ export async function enriched_shipments_from_orders(
   });
 
   // Deduplicate by tracking_id: keep first chronologically, add other order IDs to additional_order_ids
+  // BUT: only deduplicate when tracking_id is non-empty. Empty tracking_id means not shipped yet,
+  // and each shipment should appear as a separate row.
   const tracking_id_map = new Map<string, IEnrichedShipment[]>();
+  const no_tracking_shipments: IEnrichedShipment[] = [];
 
-  // Group shipments by tracking_id
+  // Separate shipments with tracking from those without
   all_shipments.forEach(s => {
     const tracking_id = s.tracking_id || '';
-    if (!tracking_id_map.has(tracking_id)) {
-      tracking_id_map.set(tracking_id, []);
+    if (tracking_id === '') {
+      // No tracking number yet - keep all of these as separate rows
+      no_tracking_shipments.push(s);
+    } else {
+      // Has tracking number - group for deduplication
+      if (!tracking_id_map.has(tracking_id)) {
+        tracking_id_map.set(tracking_id, []);
+      }
+      tracking_id_map.get(tracking_id)!.push(s);
     }
-    tracking_id_map.get(tracking_id)!.push(s);
   });
 
   // For each tracking_id group, keep first chronologically and collect additional order IDs
   const deduplicated_shipments: IEnrichedShipment[] = [];
+
   tracking_id_map.forEach((group, tracking_id) => {
     if (group.length === 1) {
       // No duplicates, just add it
@@ -90,7 +100,8 @@ export async function enriched_shipments_from_orders(
     }
   });
 
-  return deduplicated_shipments;
+  // Add all no-tracking shipments (these are never deduplicated)
+  return [...deduplicated_shipments, ...no_tracking_shipments];
 }
 
 export async function enriched_items_from_orders(
