@@ -433,7 +433,15 @@ function get_status(shipment_elem: HTMLElement): string {
       shipment_elem,
       'shipment.status'
     );
-    return util.defaulted((elem as HTMLElement)!.textContent!.trim(), '');
+    const raw_text = (elem as HTMLElement)!.textContent!;
+    // Clean up excessive whitespace: replace multiple spaces/newlines with single newline
+    // Example: "Now arriving November 17\n            \n        \n        \n            Previously expected November 18"
+    // Becomes: "Now arriving November 17\nPreviously expected November 18"
+    const cleaned = raw_text
+      .trim()
+      .replace(/\s*\n\s*/g, '\n')  // Remove whitespace around newlines
+      .replace(/\n{2,}/g, '\n');    // Replace multiple newlines with single newline
+    return util.defaulted(cleaned, '');
   } catch(err) {
     console.log('shipment.status got ', err);
     return 'UNKNOWN';
