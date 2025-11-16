@@ -89,12 +89,38 @@ export async function enriched_shipments_from_orders(
         return date_a - date_b;
       });
 
-      // Keep the first one
+      // Keep the first one as base
       const first_shipment = group[0];
 
       // Collect additional order IDs from the rest
       const additional_ids = group.slice(1).map(s => s.order.id);
       first_shipment.additional_order_ids = additional_ids;
+
+      // IMPORTANT: Merge data from all tracking pages for the same tracking number
+      // Amazon sometimes shows OTP on one tracking page but not another
+      // Check all shipments and use the first non-empty value found
+
+      // Merge one_time_passcode: use first non-empty OTP found
+      if (!first_shipment.one_time_passcode || first_shipment.one_time_passcode === '') {
+        for (const s of group.slice(1)) {
+          if (s.one_time_passcode && s.one_time_passcode !== '') {
+            first_shipment.one_time_passcode = s.one_time_passcode;
+            console.log(`Merged OTP from order ${s.order.id} into ${first_shipment.order.id}: ${s.one_time_passcode}`);
+            break;
+          }
+        }
+      }
+
+      // Merge items_from_tracking: use first non-empty list found
+      if (!first_shipment.items_from_tracking || first_shipment.items_from_tracking.length === 0) {
+        for (const s of group.slice(1)) {
+          if (s.items_from_tracking && s.items_from_tracking.length > 0) {
+            first_shipment.items_from_tracking = s.items_from_tracking;
+            console.log(`Merged ${s.items_from_tracking.length} items from order ${s.order.id} into ${first_shipment.order.id}`);
+            break;
+          }
+        }
+      }
 
       deduplicated_shipments.push(first_shipment);
     }
