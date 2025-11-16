@@ -117,10 +117,18 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
   );
 
   // Extract one-time passcode from alert content
-  // HTML: <div class="a-alert-content">Your one-time password is 805331...</div>
-  const otp_xpath = "//div[contains(@class, 'a-alert-content')]";
+  // Extract one-time passcode
+  // HTML: <section class="pt-card map-banner-card">
+  //         <div class="pt-notice-MAPS">
+  //           <div class="a-alert-content">Your one-time password is 545565...</div>
+  // Be specific to avoid matching wrong alert divs
+  const otp_xpaths = [
+    "//div[contains(@class, 'pt-notice-MAPS')]//div[contains(@class, 'a-alert-content')]",
+    "//section[contains(@class, 'map-banner-card')]//div[contains(@class, 'a-alert-content')]",
+    "//div[contains(@class, 'a-alert-content') and contains(text(), 'one-time password')]",
+  ];
   const alert_content: string|null = extraction.getField2(
-    [otp_xpath],
+    otp_xpaths,
     body,
     '',
     'otp_from_tracking_page'
@@ -132,7 +140,12 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
     const match = alert_content.match(/one-time password is (\d+)/i);
     if (match && match[1]) {
       one_time_passcode = match[1];
+      console.log(`Extracted one-time passcode: ${one_time_passcode}`);
+    } else {
+      console.log(`Found alert content but couldn't match OTP pattern: ${alert_content.substring(0, 100)}`);
     }
+  } else {
+    console.log('No one-time passcode alert found on tracking page');
   }
 
   // Extract items from carousel
