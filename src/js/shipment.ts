@@ -223,12 +223,12 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
   }
 
   // Fallback: Try alternative format for late/delayed packages
-  // HTML: <div class="itemImages-inline"><a href="/gp/product/B0BLS3Y632?..."><img alt="...">
+  // HTML: <div id="itemImagesCarousel-container"><div class="itemImages-inline"><a href="/gp/product/B0BLS3Y632?...">
   if (items_from_tracking.length === 0) {
     console.log('No items found in carousel, trying alternative format for late packages...');
     try {
       const alt_items = extraction.findMultipleNodeValues(
-        "//div[contains(@class, 'itemImages-inline')]//a[contains(@href, '/gp/product/')]",
+        "//div[@id='itemImagesCarousel-container']//a[contains(@href, '/gp/product/')]",
         body
       );
 
@@ -236,8 +236,9 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
 
       alt_items.forEach((item_elem: Node, idx: number) => {
         try {
-          const href = (item_elem as HTMLAnchorElement)?.href || '';
-          const asin_match = href.match(/\/gp\/product\/([A-Z0-9]+)/);
+          const href_attr = (item_elem as HTMLElement)?.getAttribute('href') || '';
+          console.log(`Alt format item ${idx}: href attribute = ${href_attr}`);
+          const asin_match = href_attr.match(/\/gp\/product\/([A-Z0-9]+)/);
           if (asin_match && asin_match[1]) {
             const asin = asin_match[1];
             // Late package format doesn't show quantity, assume 1
@@ -247,6 +248,8 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
               name: asin,
               quantity: quantity
             });
+          } else {
+            console.warn(`Alt format item ${idx}: No ASIN match in href: ${href_attr}`);
           }
         } catch (item_err) {
           console.warn(`Error extracting alt format item ${idx}:`, item_err);
