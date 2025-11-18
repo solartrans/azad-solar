@@ -22,6 +22,7 @@ interface ITrackingPageData {
   tracking_id: string;
   one_time_passcode: string;
   items_from_tracking: ITrackingPageItem[];
+  delivered_status: Delivered;
 }
 
 export enum Delivered {
@@ -280,10 +281,41 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
     }
   }
 
+  // Extract delivered status from tracking page
+  // HTML: <h1 class="pt-promise-main-slot">Delivered October 23</h1>
+  // or: <h1 class="pt-promise-main-slot">Arriving today</h1>
+  let delivered_status = Delivered.UNKNOWN;
+  const promise_text_raw = extraction.getField2(
+    [
+      "//h1[contains(@class, 'pt-promise-main-slot')]",
+      "//span[@id='primaryStatus']"
+    ],
+    body,
+    '',
+    'delivered_status_from_tracking_page'
+  );
+
+  if (promise_text_raw) {
+    const promise_text = promise_text_raw.toLowerCase();
+    console.log(`Tracking page promise text: "${promise_text}"`);
+
+    if (promise_text.includes('delivered')) {
+      delivered_status = Delivered.YES;
+      console.log('Tracking page shows: DELIVERED');
+    } else if (tracking_id && tracking_id !== '') {
+      // Has tracking number but not delivered yet
+      delivered_status = Delivered.NO;
+      console.log('Tracking page shows: SHIPPED but not delivered');
+    }
+  } else {
+    console.log('No promise text found on tracking page');
+  }
+
   return {
     tracking_id: tracking_id || '',
     one_time_passcode: one_time_passcode,
-    items_from_tracking: items_from_tracking
+    items_from_tracking: items_from_tracking,
+    delivered_status: delivered_status
   };
 }
 
@@ -423,9 +455,10 @@ async function shipment_from_elem(
 
   let one_time_passcode: string = '';
   let items_from_tracking: ITrackingPageItem[] = [];
+  let delivered_from_tracking: Delivered | null = null;
 
   // Fetch the tracking page if we have a tracking link
-  // We need to do this to get the OTP and items which are only on the tracking page
+  // We need to do this to get the OTP, items, and accurate delivered status from tracking page
   if (tracking_link !== '') {
     const tracking_data = await get_tracking_data(tracking_link, scheduler);
 
@@ -442,6 +475,9 @@ async function shipment_from_elem(
 
     // Get items from tracking page
     items_from_tracking = tracking_data.items_from_tracking;
+
+    // Get delivered status from tracking page (more accurate than order page)
+    delivered_from_tracking = tracking_data.delivered_status;
   }
 
   // Fallback: try to get OTP from shipment element (older format or different page layout)
@@ -454,10 +490,17 @@ async function shipment_from_elem(
                       '';
   const refund: string = get_refund(shipment_elem);
 
+  // Prefer delivered status from tracking page (more accurate) over order page
+  const delivered_status = delivered_from_tracking !== null ?
+                            delivered_from_tracking :
+                            is_delivered(shipment_elem, tracking_id);
+
+  console.log(`Final delivered status: ${Delivered[delivered_status]} (from tracking: ${delivered_from_tracking !== null})`);
+
   return {
     shipment_id: shipment_id,
     items: await item.extractItems(shipment_elem, order_header, scheduler, context),
-    delivered: is_delivered(shipment_elem, tracking_id),
+    delivered: delivered_status,
     status: get_status(shipment_elem),
     tracking_link: tracking_link,
     tracking_id: tracking_id,
