@@ -23,6 +23,7 @@ interface ITrackingPageData {
   one_time_passcode: string;
   items_from_tracking: ITrackingPageItem[];
   delivered_status: Delivered;
+  shipping_status: string;
 }
 
 export enum Delivered {
@@ -260,8 +261,27 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
           const asin_match = href_attr.match(/\/gp\/product\/([A-Z0-9]+)/);
           if (asin_match && asin_match[1]) {
             const asin = asin_match[1];
-            // Late package format doesn't show quantity, assume 1
-            const quantity = 1;
+
+            // Extract quantity from <span class="itemImages-quantityLabel">3</span>
+            // This span is a sibling of the <a> tag in the parent container
+            let quantity = 1;  // Default to 1 if not found
+            try {
+              const parent = (item_elem as HTMLElement)?.parentElement;
+              if (parent) {
+                const qty_span = parent.querySelector('.itemImages-quantityLabel');
+                if (qty_span) {
+                  const qty_text = qty_span.textContent?.trim() || '1';
+                  const parsed_qty = parseInt(qty_text, 10);
+                  if (!isNaN(parsed_qty)) {
+                    quantity = parsed_qty;
+                    console.log(`Alt format item ${idx}: Extracted quantity from itemImages-quantityLabel: ${quantity}`);
+                  }
+                }
+              }
+            } catch (qty_err) {
+              console.log(`Alt format item ${idx}: Could not extract quantity, using default 1`);
+            }
+
             console.log(`Alt format item ${idx}: Extracted ${quantity}x ${asin}`);
             items_from_tracking.push({
               name: asin,
@@ -311,11 +331,17 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
     console.log('No promise text found on tracking page');
   }
 
+  // Extract shipping status text (for display in status column)
+  // Use the same promise_text_raw which contains text like "Delivered October 23" or "Arriving today"
+  const shipping_status = promise_text_raw || '';
+  console.log(`Shipping status from tracking page: "${shipping_status}"`);
+
   return {
     tracking_id: tracking_id || '',
     one_time_passcode: one_time_passcode,
     items_from_tracking: items_from_tracking,
-    delivered_status: delivered_status
+    delivered_status: delivered_status,
+    shipping_status: shipping_status
   };
 }
 
@@ -338,7 +364,9 @@ async function get_tracking_data(
     return {
       tracking_id: stripped_id,
       one_time_passcode: data.one_time_passcode,
-      items_from_tracking: data.items_from_tracking
+      items_from_tracking: data.items_from_tracking,
+      delivered_status: data.delivered_status,
+      shipping_status: data.shipping_status
     };
   } catch (ex) {
     console.warn(
@@ -348,7 +376,9 @@ async function get_tracking_data(
     return {
       tracking_id: '',
       one_time_passcode: '',
-      items_from_tracking: []
+      items_from_tracking: [],
+      delivered_status: Delivered.UNKNOWN,
+      shipping_status: ''
     };
   }
 }
@@ -456,6 +486,7 @@ async function shipment_from_elem(
   let one_time_passcode: string = '';
   let items_from_tracking: ITrackingPageItem[] = [];
   let delivered_from_tracking: Delivered | null = null;
+  let status_from_tracking: string = '';
 
   // Fetch the tracking page if we have a tracking link
   // We need to do this to get the OTP, items, and accurate delivered status from tracking page
@@ -478,6 +509,9 @@ async function shipment_from_elem(
 
     // Get delivered status from tracking page (more accurate than order page)
     delivered_from_tracking = tracking_data.delivered_status;
+
+    // Get shipping status from tracking page
+    status_from_tracking = tracking_data.shipping_status;
   }
 
   // Fallback: try to get OTP from shipment element (older format or different page layout)
@@ -497,11 +531,18 @@ async function shipment_from_elem(
 
   console.log(`Final delivered status: ${Delivered[delivered_status]} (from tracking: ${delivered_from_tracking !== null})`);
 
+  // Prefer shipping status from tracking page (more accurate) over order page
+  const status = status_from_tracking !== '' ?
+                 status_from_tracking :
+                 get_status(shipment_elem);
+
+  console.log(`Final shipping status: "${status}" (from tracking: ${status_from_tracking !== ''})`);
+
   return {
     shipment_id: shipment_id,
     items: await item.extractItems(shipment_elem, order_header, scheduler, context),
     delivered: delivered_status,
-    status: get_status(shipment_elem),
+    status: status,
     tracking_link: tracking_link,
     tracking_id: tracking_id,
     one_time_passcode: one_time_passcode,
