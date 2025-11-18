@@ -419,6 +419,8 @@ async function shipment_from_elem(
 
   // Try to get tracking ID directly from the order page first
   let tracking_id: string = get_tracking_id_from_text(shipment_elem);
+  console.log(`Tracking ID from order page: "${tracking_id}"`);
+
   let one_time_passcode: string = '';
   let items_from_tracking: ITrackingPageItem[] = [];
 
@@ -430,6 +432,9 @@ async function shipment_from_elem(
     // Use tracking ID from tracking page if we didn't find it on the order page
     if (tracking_id === '') {
       tracking_id = tracking_data.tracking_id;
+      console.log(`Using tracking ID from tracking page: "${tracking_id}"`);
+    } else {
+      console.log(`Keeping tracking ID from order page: "${tracking_id}"`);
     }
 
     // Get OTP from tracking page
@@ -477,10 +482,13 @@ function get_refund(shipment_elem: HTMLElement): string {
 }
 
 function is_delivered(shipment_elem: HTMLElement, tracking_id: string): Delivered {
+  console.log(`is_delivered() called with tracking_id: "${tracking_id}"`);
+
   const attr = shipment_elem.getAttribute('class');
 
   // Check for explicit delivered status
   if ((attr as string).includes('shipment-is-delivered')) {
+    console.log('Detected as delivered (class check)');
     return Delivered.YES;
   }
 
@@ -488,14 +496,17 @@ function is_delivered(shipment_elem: HTMLElement, tracking_id: string): Delivere
 
   // Check for delivered text
   if (text.includes('delivered')) {
+    console.log('Detected as delivered (text check)');
     return Delivered.YES;
   }
 
   // If there's a tracking number, the package has been shipped (but not delivered)
   if (tracking_id && tracking_id !== '') {
+    console.log(`Detected as shipped but not delivered (has tracking_id: "${tracking_id}")`);
     return Delivered.NO;
   }
 
+  console.log('Could not determine delivery status, returning UNKNOWN');
   return Delivered.UNKNOWN;
 }
 
