@@ -108,13 +108,31 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
   const body = doc.body;
 
   // Extract tracking ID
-  const id_xpath = "//div[contains(@class, 'pt-delivery-card-trackingId')]";
-  const tracking_id: string|null = extraction.getField2(
-    [id_xpath],
+  // Normal format: <div class="pt-delivery-card-trackingId">Tracking ID: TBA...</div>
+  // Late package format: <h4 class="carrierRelatedInfo-trackingId-text">Tracking ID: TBA...</h4>
+  const tracking_id_raw: string|null = extraction.getField2(
+    [
+      "//div[contains(@class, 'pt-delivery-card-trackingId')]",
+      "//h4[contains(@class, 'carrierRelatedInfo-trackingId-text')]",
+      "//*[contains(@class, 'trackingId')][contains(text(), 'Tracking ID')]"
+    ],
     body,
     '',
     'tracking_id_from_tracking_page'
   );
+
+  // Extract just the tracking number from text like "Tracking ID: TBA325833760125"
+  let tracking_id = '';
+  if (tracking_id_raw) {
+    const match = tracking_id_raw.match(/TBA\d+|1Z[A-Z0-9]+/);
+    if (match) {
+      tracking_id = match[0];
+    } else {
+      // Fallback: if no pattern match, remove "Tracking ID:" prefix
+      tracking_id = tracking_id_raw.replace(/Tracking ID:\s*/i, '').trim();
+    }
+  }
+  console.log(`Extracted tracking ID from tracking page: ${tracking_id}`);
 
   // Extract one-time passcode from alert content
   // Extract one-time passcode
