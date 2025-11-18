@@ -434,7 +434,7 @@ async function shipment_from_elem(
   return {
     shipment_id: shipment_id,
     items: await item.extractItems(shipment_elem, order_header, scheduler, context),
-    delivered: is_delivered(shipment_elem),
+    delivered: is_delivered(shipment_elem, tracking_id),
     status: get_status(shipment_elem),
     tracking_link: tracking_link,
     tracking_id: tracking_id,
@@ -458,20 +458,23 @@ function get_refund(shipment_elem: HTMLElement): string {
   return refund == null ? '' : refund;
 }
 
-function is_delivered(shipment_elem: HTMLElement): Delivered {
+function is_delivered(shipment_elem: HTMLElement, tracking_id: string): Delivered {
   const attr = shipment_elem.getAttribute('class');
 
+  // Check for explicit delivered status
   if ((attr as string).includes('shipment-is-delivered')) {
     return Delivered.YES;
   }
 
   const text = shipment_elem.textContent?.toLowerCase().trim() ?? '';
 
+  // Check for delivered text
   if (text.includes('delivered')) {
     return Delivered.YES;
   }
 
-  if (text.includes('arriving')) {
+  // If there's a tracking number, the package has been shipped (but not delivered)
+  if (tracking_id && tracking_id !== '') {
     return Delivered.NO;
   }
 
