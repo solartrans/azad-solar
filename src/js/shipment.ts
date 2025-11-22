@@ -30,6 +30,7 @@ export enum Delivered {
   YES = 1,
   NO = 2,
   UNKNOWN = 3,
+  CANCELLED = 4,
 }
 
 export interface IShipment {
@@ -55,6 +56,37 @@ export async function get_shipments(
 ): Promise<IShipment[]> {
   const doc_elem = order_detail_doc.documentElement;
   const transactions = get_transactions(doc_elem);
+
+  // Check if order is cancelled
+  // HTML: <div data-component="cancelled">
+  //       or <h4 class="a-alert-heading">This order has been cancelled.</h4>
+  const is_cancelled = extraction.getField2(
+    [
+      '//div[@data-component="cancelled"]',
+      '//h4[contains(@class, "a-alert-heading") and contains(text(), "cancelled")]',
+    ],
+    doc_elem,
+    '',
+    'cancelled_order_detection'
+  );
+
+  if (is_cancelled) {
+    console.log('Detected cancelled order, returning synthetic CANCELLED shipment');
+    // Return a single synthetic shipment indicating the order was cancelled
+    const cancelled_shipment: IShipment = {
+      shipment_id: '',
+      items: await item.extractItems(doc_elem, order_header, scheduler, context),
+      delivered: Delivered.CANCELLED,
+      status: 'CANCELLED',
+      tracking_link: '',
+      tracking_id: '',
+      one_time_passcode: '',
+      items_from_tracking: [],
+      transaction: transactions.length > 0 ? transactions[0] : null,
+      refund: '',
+    };
+    return [cancelled_shipment];
+  }
 
   function strategy_a(): Node[] {
     const candidates = extraction.findMultipleNodeValues(
