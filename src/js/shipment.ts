@@ -315,6 +315,19 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
     'delivered_status_from_tracking_page'
   );
 
+  // Extract shipping status from status card
+  // HTML: <h1 class="pt-status-main-status">Ordered</h1>
+  // or: <h1 class="pt-status-main-status">Shipped</h1>
+  // or: <h1 class="pt-status-main-status">Delivered</h1>
+  const status_card_text_raw = extraction.getField2(
+    [
+      "//h1[contains(@class, 'pt-status-main-status')]"
+    ],
+    body,
+    '',
+    'status_from_tracking_page'
+  );
+
   if (promise_text_raw) {
     const promise_text = promise_text_raw.toLowerCase();
     console.log(`Tracking page promise text: "${promise_text}"`);
@@ -326,6 +339,16 @@ function data_from_tracking_page(evt: req.Event): ITrackingPageData {
       // Has tracking number but not delivered yet
       delivered_status = Delivered.NO;
       console.log('Tracking page shows: SHIPPED but not delivered');
+    } else if (status_card_text_raw) {
+      // Check the status card for "Ordered" or "Shipped" status
+      const status_text = status_card_text_raw.toLowerCase().trim();
+      console.log(`Tracking page status card text: "${status_text}"`);
+
+      if (status_text === 'ordered' || status_text === 'shipped') {
+        // Package has been ordered/shipped but not yet delivered
+        delivered_status = Delivered.NO;
+        console.log(`Tracking page shows: ${status_text.toUpperCase()} but not delivered`);
+      }
     }
   } else {
     console.log('No promise text found on tracking page');
