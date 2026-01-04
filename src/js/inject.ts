@@ -421,10 +421,10 @@ async function handleQuickExportClick(): Promise<void> {
     // Enable shipment info
     await settings.storeBoolean('show_shipment_info', true);
 
-    // Calculate date range for last 1 month
+    // Calculate date range for last 3 months (90 days)
     const end_date = new Date();
     const start_date = new Date();
-    start_date.setMonth(start_date.getMonth() - 1);
+    start_date.setMonth(start_date.getMonth() - 3);
 
     console.log(`Auto export: scraping shipments from ${start_date} to ${end_date}`);
 
