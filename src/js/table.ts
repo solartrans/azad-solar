@@ -328,15 +328,6 @@ async function reallyDisplay(
     }
   });
 
-  (await getBackgroundPort())?.postMessage({
-    action: 'remote_log_with_user_id',
-    log_msg: {
-      operation: `display.${table_type}`,
-      status: 'complete',
-      rowCount: (table.rows.length).toString(),
-    },
-  });
-
   console.log('azad.reallyDisplay returning');
   return table;
 }
@@ -385,15 +376,6 @@ async function reallyDisplayTransactions(
       );
       addTransactionsCsvButton(transactions, getBackgroundPort);
     }
-  });
-
-  (await getBackgroundPort())?.postMessage({
-    action: 'remote_log_with_user_id',
-    log_msg: {
-      operation: `display.${tableType}`,
-      status: 'complete',
-      rowCount: (table.rows.length).toString(),
-    },
   });
 
   console.log('azad.reallyDisplay returning');

@@ -2,50 +2,25 @@
 
 'use strict';
 
-const ep = require('ExtPay');
-
-// Apparently (https://github.com/glench/ExtPay#manifest-v3)
-// we should fetch a new ExtPay reference each time we need one (for async code)
-// but only initialise once with startBackground.
-function getExtPay(): any {
-  return ep.default('amazon-order-history-reporter-premium-annual');
-}
-
-try {
-  getExtPay().startBackground();
-  console.log('extpay initialised');
-} catch (ex) {
-  console.error('extpay_client got ' + ex + ' when calling startBackground');
-}
+// ExtensionPay has been disabled - all features are now free
 
 export async function check_authorised(): Promise<boolean> {
-  console.log('extpay_client.check_authorised() called');
-  const user = await getExtPay().getUser();
-
-  // Sometimes subscriptionStatus is undefined - this seems to be triggered by
-  // the use of more than one version of the extension, and so far I've not
-  // found a way of un-doing the damage.
-  const status = user.subscriptionStatus;
-
-  const authorised = status == 'active' || user.paid;
-  return authorised;
+  console.log('extpay_client.check_authorised() called - always returning true (ExtensionPay disabled)');
+  return true; // All features are now free
 }
 
 export async function display_payment_ui() {
-  getExtPay().openPaymentPage();
+  console.log('Payment UI disabled - ExtensionPay removed');
 }
 
 export async function display_login_page() {
-  getExtPay().openLoginPage();
+  console.log('Login page disabled - ExtensionPay removed');
 }
 
 export async function display_console() {
-  chrome.tabs.create(
-    {'url': 'https://billing.stripe.com/p/login/14A7sLeQueW49eA0N6eAg00'}
-  );
+  console.log('Console disabled - ExtensionPay removed');
 }
 
 export async function getLoginId(): Promise<string> {
-  const user = await getExtPay().getUser(); 
-  return user.email;
+  return 'anonymous'; // No user tracking
 }

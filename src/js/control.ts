@@ -129,9 +129,8 @@ async function handleAdvertisePeriods(periods: number[]): Promise<void> {
 }
 
 function handleAuthorisationMessage(authorised: boolean): void {
-  const authorised_html = authorised ?
-    'Preview/Premium features <b>enabled</b>' :
-    'Preview/Premium features <b>disabled</b>';
+  // All features are now free
+  const authorised_html = 'All features <b>enabled</b> (payment system removed)';
 
   $('#azad_extensionpay_status').html(authorised_html);
 }
